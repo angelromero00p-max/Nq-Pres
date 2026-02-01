@@ -15,8 +15,22 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Configuración de Turso (o SQLite local si fallan las variables)
-const url = process.env.TURSO_DATABASE_URL;
-const authToken = process.env.TURSO_AUTH_TOKEN;
+let url = process.env.TURSO_DATABASE_URL;
+let authToken = process.env.TURSO_AUTH_TOKEN;
+
+// Limpieza y normalización de credenciales
+if (url) {
+    url = url.trim();
+    if (url.startsWith('libsql://')) {
+        url = url.replace('libsql://', 'https://');
+    }
+}
+
+if (authToken) {
+    authToken = authToken.trim();
+}
+
+console.log('Configuración BD:', url ? `Conectando a ${url}` : 'Usando modo local (file:urls.db)');
 
 const client = createClient({
   url: url || 'file:urls.db',
