@@ -14,7 +14,9 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Base de datos SQLite
-const dbPath = path.join(__dirname, 'urls.db');
+// En Render con Persistent Disk, usaremos una ruta absoluta (ej: /var/data/urls.db)
+// Si no se define DB_PATH, se usa el archivo local
+const dbPath = process.env.DB_PATH || path.join(__dirname, 'urls.db');
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('Error al conectar con la base de datos:', err.message);
