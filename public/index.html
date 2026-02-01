@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acortador de URL Sencillo</title>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --bg: #f5f7fa;
+            --text: #333;
+            --white: #ffffff;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 90%;
+            max-width: 800px;
+            margin-top: 50px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        .card {
+            background: var(--white);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        input[type="url"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            min-width: 200px;
+        }
+        input[type="text"] {
+            width: 150px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #357abd;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f0fe;
+            border-radius: 5px;
+            display: none;
+            text-align: center;
+        }
+        .result a {
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 18px;
+            text-decoration: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            color: #666;
+        }
+        .copy-btn {
+            background: #eee;
+            color: #333;
+            padding: 5px 10px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .clicks-badge {
+            background: var(--primary);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        @media (max-width: 600px) {
+            .input-group {
+                flex-direction: column;
+            }
+            input[type="text"] {
+                width: 100%;
+                box-sizing: border-box;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Acortador de URL</h1>
+        <p>Acorta tus enlaces y rastrea los clics fácilmente.</p>
+    </header>
+
+    <div class="card">
+        <form id="shortenForm">
+            <div class="input-group">
+                <input type="url" id="originalUrl" placeholder="Pega tu enlace largo aquí (https://...)" required>
+                <input type="text" id="customCode" placeholder="Alias (opcional)">
+                <button type="submit">Acortar</button>
+            </div>
+        </form>
+        <div id="result" class="result">
+            <p>¡Listo! Tu enlace corto es:</p>
+            <a href="#" id="shortLink" target="_blank"></a>
+            <button class="copy-btn" onclick="copyToClipboard()">Copiar</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Estadísticas</h2>
+        <div style="overflow-x: auto;">
+            <table id="statsTable">
+                <thead>
+                    <tr>
+                        <th>Enlace Corto</th>
+                        <th>Original</th>
+                        <th>Clics</th>
+                        <th>Creado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Datos cargados dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('shortenForm');
+    const resultDiv = document.getElementById('result');
+    const shortLink = document.getElementById('shortLink');
+    const statsTableBody = document.querySelector('#statsTable tbody');
+
+    // Cargar estadísticas al inicio
+    loadStats();
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const originalUrl = document.getElementById('originalUrl').value;
+        const customCode = document.getElementById('customCode').value;
+
+        try {
+            const response = await fetch('/api/shorten', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ originalUrl, customCode })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                shortLink.href = data.shortUrl;
+                shortLink.textContent = data.shortUrl;
+                resultDiv.style.display = 'block';
+                form.reset();
+                loadStats(); // Recargar tabla
+            } else {
+                alert('Error: ' + (data.error || 'No se pudo acortar'));
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        }
+    });
+
+    async function loadStats() {
+        try {
+            const response = await fetch('/api/stats');
+            const data = await response.json();
+            
+            statsTableBody.innerHTML = '';
+            
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                
+                // Formatear fecha
+                const date = new Date(item.created_at).toLocaleDateString() + ' ' + new Date(item.created_at).toLocaleTimeString();
+                
+                // Truncar URL larga si es muy larga
+                const truncatedUrl = item.original_url.length > 50 
+                    ? item.original_url.substring(0, 50) + '...' 
+                    : item.original_url;
+
+                tr.innerHTML = `
+                    <td><a href="${item.shortUrl}" target="_blank">${item.short_code}</a></td>
+                    <td title="${item.original_url}">${truncatedUrl}</td>
+                    <td><span class="clicks-badge">${item.click_count}</span></td>
+                    <td>${date}</td>
+                `;
+                statsTableBody.appendChild(tr);
+            });
+        } catch (error) {
+            console.error('Error cargando stats:', error);
+        }
+    }
+
+    function copyToClipboard() {
+        const url = shortLink.textContent;
+        navigator.clipboard.writeText(url).then(() => {
+            alert('¡Enlace copiado!');
+        });
+    }
+</script>
+
+</body>
+</html>
